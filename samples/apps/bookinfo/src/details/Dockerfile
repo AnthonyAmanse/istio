@@ -16,6 +16,7 @@ FROM ruby:2.3
 
 RUN mkdir -p /opt/microservices
 COPY . /opt/microservices/
+RUN gem install mysql
 EXPOSE 9080
 WORKDIR /opt/microservices
 

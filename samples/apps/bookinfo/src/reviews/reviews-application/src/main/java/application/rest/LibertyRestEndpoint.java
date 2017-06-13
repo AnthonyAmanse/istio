@@ -14,12 +14,15 @@
  * limitations under the License.
  *******************************************************************************/
 package application.rest;
-
 import java.io.StringReader;
+import java.sql.*;
+
+import javax.annotation.Resource;
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
 import javax.json.JsonReader;
+import javax.sql.DataSource;
 import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.CookieParam;
 import javax.ws.rs.GET;
@@ -42,19 +45,26 @@ public class LibertyRestEndpoint extends Application {
     private final static Boolean ratings_enabled = Boolean.valueOf(System.getenv("ENABLE_RATINGS"));
     private final static String star_color = System.getenv("STAR_COLOR") == null ? "black" : System.getenv("STAR_COLOR");
     private final static String ratings_service = "http://ratings:9080/ratings";
+    private final static String dbHost = System.getenv("MYSQL_DB_HOST");
+    private final static String dbPort = System.getenv("MYSQL_DB_PORT");
+    private final static String dbUser = System.getenv("MYSQL_DB_USER");
+    private final static String dbPassword = System.getenv("MYSQL_DB_PASSWORD");
+    
 
+    @Resource(lookup="jdbc/mydb")
+    private DataSource dataSource;
+    
     private final static String review_resp = ""+
       "<blockquote>"+
       "<p>"+
-      "An extremely entertaining play by Shakespeare. The slapstick humour is refreshing!"+
-      "</p> <small>Reviewer1 <cite>Affiliation1</cite></small>"+
+      "%s"+
+      "</p> <small>%s <cite>Affiliation1</cite></small>"+
       "%s"+
       "</blockquote>"+
       "<blockquote>"+
       "<p>"+
-      "Absolutely fun and entertaining. The play lacks thematic depth when compared "+
-      "to other plays by Shakespeare."+
-      "</p> <small>Reviewer2 <cite>Affiliation2</cite></small>"+
+      "%s"+
+      "</p> <small>%s <cite>Affiliation2</cite></small>"+
       "%s"+
       "</blockquote>";
 
@@ -139,7 +149,35 @@ public class LibertyRestEndpoint extends Application {
                                 @HeaderParam("x-ot-span-context") String xotspan) {
       String r1 = "";
       String r2 = "";
+      Integer[] reviewID = new Integer[2];
+      String[] review = new String[2];
+      String[] reviewer = new String[2];
+      
+      try {
+      Class.forName("com.mysql.jdbc.Driver").newInstance();
+      String URL = "jdbc:mysql://" + dbHost + ":" + dbPort + "/bookinfo_db" ;
+      Connection con = DriverManager.getConnection(URL, dbUser, dbPassword);
 
+      Statement st = con.createStatement();
+      String sql = ("SELECT * FROM reviews;");
+      ResultSet rs = st.executeQuery(sql);
+      
+      int count = 0;
+      while (rs.next()) { 
+       reviewID[count] = rs.getInt("ReviewID");
+       review[count] = rs.getString("Review");
+       reviewer[count] = rs.getString("Reviewer");
+       System.out.println(reviewID[count] + " " + review[count] + " " + reviewer[count]);
+       count++;
+      }
+
+      con.close();
+      }
+      catch (Exception ex) {
+    	  ex.printStackTrace();
+      }
+      
+      
       if(ratings_enabled){
         JsonObject ratings = getRatings(user, xreq, xtraceid, xspanid, xparentspanid, xsampled, xflags, xotspan);
 
@@ -155,7 +193,7 @@ public class LibertyRestEndpoint extends Application {
             r1 = r2 = "<span class=\"bg-warning\">product ratings not available</span>";
         }
       }
-      String replyBody = String.format(review_resp,r1,r2);
+      String replyBody = String.format(review_resp,review[0],reviewer[0],r1,review[1],reviewer[1],r2);
       return Response.ok().type(MediaType.TEXT_HTML_TYPE).entity(replyBody).build();
     }
 

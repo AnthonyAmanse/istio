@@ -14,10 +14,20 @@
 
 var http = require('http');
 var dispatcher = require('httpdispatcher');
+var mysql = require('mysql');
 
 port = parseInt(process.argv[2]);
 
-var ratingsResponse = {"Reviewer1": 5, "Reviewer2": 4}
+var hostName = process.env.MYSQL_DB_HOST;
+var portNumber = process.env.MYSQL_DB_PORT;
+var username = process.env.MYSQL_DB_USER;
+var password = process.env.MYSQL_DB_PASSWORD;
+
+
+
+var first_rating;
+var second_rating;
+var ratingsResponse;
 
 dispatcher.onGet("/", function(req, res) {
     res.writeHead(200)
@@ -46,9 +56,30 @@ dispatcher.onGet("/", function(req, res) {
 })
 
 dispatcher.onGet("/ratings", function(req, res) {
-    var json = JSON.stringify(ratingsResponse)
-    res.writeHead(200, {"Content-type": "application/json"})
-    res.end(json)
+    var connection = mysql.createConnection({
+        host: hostName,
+        port: portNumber,
+        user: username,
+        password: password,
+        database : 'bookinfo_db'
+    });
+
+    connection.connect();
+    connection.query('SELECT Rating FROM reviews WHERE BookID=1', function (error, results, fields) {
+        if (error) throw error;
+        console.log('Reviewer1: ', results[0].Rating);
+        first_rating = results[0].Rating;
+        console.log(first_rating);
+        console.log('Reviewer2', results[1].Rating);
+        second_rating = results[1].Rating;
+        console.log(second_rating);
+        ratingsResponse = {"Reviewer1": first_rating, "Reviewer2": second_rating};
+        console.log(ratingsResponse);
+        var json = JSON.stringify(ratingsResponse)
+        res.writeHead(200, {"Content-type": "application/json"})
+        res.end(json)
+    });
+    connection.end();
 })
 
 dispatcher.onGet("/health", function(req, res) {

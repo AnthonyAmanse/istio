@@ -15,6 +15,7 @@
 #   limitations under the License.
 
 require 'webrick'
+require 'mysql'
 
 if ARGV.length < 1 then
     puts "usage: #{$PROGRAM_NAME} port"
@@ -27,16 +28,27 @@ server = WEBrick::HTTPServer.new :BindAddress => '0.0.0.0', :Port => port
 
 trap 'INT' do server.shutdown end
 
-details_resp = '
-<h4 class="text-center text-primary">Book Details</h4>
-<dl>
-<dt>Paperback:</dt>200 pages
-<dt>Publisher:</dt> PublisherA
-<dt>Language:</dt>English
-<dt>ISBN-10:</dt>1234567890
-<dt>ISBN-13:</dt>123-1234567980
-</dl>
-'
+  paperback = "default"
+  publisher = "default"
+  language = "default"
+  isbnA = "default"
+  isbnB = "default"
+  details_resp = '
+  <h4 class="text-center text-primary">Book Details</h4>
+  <dl>
+  <dt>Paperback:</dt>' + paperback + '
+  <dt>Publisher:</dt>' + publisher + '
+  <dt>Language:</dt>' + language + '
+  <dt>ISBN-10:</dt>' + isbnA + '
+  <dt>ISBN-13:</dt>' + isbnB + '
+  </dl>
+  '
+dbHost = ENV['MYSQL_DB_HOST']
+dbPort = Integer(ENV['MYSQL_DB_PORT'])
+dbUser = ENV['MYSQL_DB_USER']
+dbPass = ENV['MYSQL_DB_PASSWORD']
+
+
 
 server.mount_proc '/health' do |req, res|
     res.status = 200
@@ -45,6 +57,31 @@ server.mount_proc '/health' do |req, res|
 end
 
 server.mount_proc '/details' do |req, res|
+    con = Mysql.new(dbHost, dbUser, dbPass, 'bookinfo_db', dbPort)
+    rs = con.query('SELECt * FROM books WHERE BookID=1')
+
+    paperback = "default"
+    publisher = "default"
+    language = "default"
+    isbnA = "default"
+    isbnB = "default"
+    rs.each_hash do |row|
+        paperback = row["Paperback"]
+        publisher = row["Publisher"]
+        language = row["Language"]
+        isbnA = row["ISBN_10"]
+        isbnB = row["ISBN_13"]
+    end
+    details_resp = '
+    <h4 class="text-center text-primary">Book Details</h4>
+    <dl>
+    <dt>Paperback:</dt>' + paperback + '
+    <dt>Publisher:</dt>' + publisher + '
+    <dt>Language:</dt>' + language + '
+    <dt>ISBN-10:</dt>' + isbnA + '
+    <dt>ISBN-13:</dt>' + isbnB + '
+    </dl>
+    '
     res.body = details_resp
     res['Content-Type'] = 'text/html'
 end
