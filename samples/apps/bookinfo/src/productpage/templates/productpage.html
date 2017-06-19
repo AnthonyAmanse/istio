@@ -68,7 +68,7 @@ $('#login-modal').on('shown.bs.modal', function () {
   </div>
 </div>
 -->
-    
+
 <div id="login-modal" class="modal fade" role="dialog">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -115,6 +115,25 @@ $('#login-modal').on('shown.bs.modal', function () {
 {{ reviews }}
 {% endautoescape %}
 </div>
+</div>
+<div class="row" align=center>
+{% if user: %}
+    <!-- <br>
+    <form action="/post" method="post">
+        Reviewer:<br>
+        <input type="text" name="reviewer" value={{ user }} disabled><br><br>
+        Rating:<br>
+        <input type="number" name="rating" size="1" min="1" max="5" required><br><br>
+        Review:<br>
+        <textarea name="review" rows="3" cols="100" wrap="soft" maxlength="1000" required></textarea><br><br>
+        <input type="submit" value="Submit">
+    </form> -->
+{% autoescape false %}
+{{ post }}
+{% endautoescape %}
+{% else %}
+<h3>You must log in to post a review</h3>
+{% endif %}
 </div>
 </div>
 {% endblock %}

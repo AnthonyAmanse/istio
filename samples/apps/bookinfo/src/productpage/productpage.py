@@ -49,6 +49,11 @@ details = {
     "endpoint" : "details",
     "children" : []
 }
+post = {
+    "name" : "http://post:9080",
+    "endpoint" : "post",
+    "children" : []
+}
 
 ratings = {
     "name" : "http://ratings:9080",
@@ -65,7 +70,7 @@ reviews = {
 productpage = {
     "name" : "http://productpage:9080",
     "endpoint" : "details",
-    "children" : [details, reviews]
+    "children" : [details, reviews, post]
 }
 
 service_dict = {
@@ -132,7 +137,8 @@ def front():
     user = request.cookies.get("user", "")
     bookdetails = getDetails(headers)
     bookreviews = getReviews(headers)
-    return render_template('productpage.html', details=bookdetails, reviews=bookreviews, user=user)
+    bookpost = getPost(headers)
+    return render_template('productpage.html', details=bookdetails, reviews=bookreviews, post=bookpost, user=user)
 
 def getReviews(headers):
     for i in range(2):
@@ -158,6 +164,17 @@ def getDetails(headers):
     else:
         return """<h3>Sorry, product details are currently unavailable for this book.</h3>"""
 
+def getPost(headers):
+    try:
+        res = requests.get(post['name']+"/"+post['endpoint'], headers=headers, timeout=1.0)
+    except:
+        res = None
+
+    if res and res.status_code == 200:
+        return res.text
+    else:
+        return """<h3>Sorry, post service is currently unavailable.</h3>"""
+
 
 class Writer(object):
 
@@ -178,4 +195,3 @@ if __name__ == '__main__':
     sys.stderr = Writer('stderr.log')
     sys.stdout = Writer('stdout.log')
     app.run(host='0.0.0.0', port=p, debug = True, threaded=True)
-

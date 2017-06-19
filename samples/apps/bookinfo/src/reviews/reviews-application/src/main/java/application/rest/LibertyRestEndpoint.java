@@ -49,22 +49,12 @@ public class LibertyRestEndpoint extends Application {
     private final static String dbPort = System.getenv("MYSQL_DB_PORT");
     private final static String dbUser = System.getenv("MYSQL_DB_USER");
     private final static String dbPassword = System.getenv("MYSQL_DB_PASSWORD");
-    
 
-    @Resource(lookup="jdbc/mydb")
-    private DataSource dataSource;
-    
-    private final static String review_resp = ""+
+    private final static String review_template = ""+
       "<blockquote>"+
       "<p>"+
       "%s"+
-      "</p> <small>%s <cite>Affiliation1</cite></small>"+
-      "%s"+
-      "</blockquote>"+
-      "<blockquote>"+
-      "<p>"+
-      "%s"+
-      "</p> <small>%s <cite>Affiliation2</cite></small>"+
+      "</p> <small>%s <cite>Affiliation</cite></small>"+
       "%s"+
       "</blockquote>";
 
@@ -147,54 +137,82 @@ public class LibertyRestEndpoint extends Application {
                                 @HeaderParam("x-b3-sampled") String xsampled,
                                 @HeaderParam("x-b3-flags") String xflags,
                                 @HeaderParam("x-ot-span-context") String xotspan) {
-      String r1 = "";
-      String r2 = "";
-      Integer[] reviewID = new Integer[2];
-      String[] review = new String[2];
-      String[] reviewer = new String[2];
-      
-      try {
-      Class.forName("com.mysql.jdbc.Driver").newInstance();
-      String URL = "jdbc:mysql://" + dbHost + ":" + dbPort + "/bookinfo_db" ;
-      Connection con = DriverManager.getConnection(URL, dbUser, dbPassword);
-
-      Statement st = con.createStatement();
-      String sql = ("SELECT * FROM reviews;");
-      ResultSet rs = st.executeQuery(sql);
-      
-      int count = 0;
-      while (rs.next()) { 
-       reviewID[count] = rs.getInt("ReviewID");
-       review[count] = rs.getString("Review");
-       reviewer[count] = rs.getString("Reviewer");
-       System.out.println(reviewID[count] + " " + review[count] + " " + reviewer[count]);
-       count++;
-      }
-
-      con.close();
-      }
-      catch (Exception ex) {
-    	  ex.printStackTrace();
-      }
-      
-      
-      if(ratings_enabled){
-        JsonObject ratings = getRatings(user, xreq, xtraceid, xspanid, xparentspanid, xsampled, xflags, xotspan);
-
-        if(ratings!=null){
-          if(ratings.containsKey("Reviewer1")){
-            r1 = ratings.getString("Reviewer1");
-          }
-          if(ratings.containsKey("Reviewer2")){
-            r2 = ratings.getString("Reviewer2");
-          }
-        }else{
-            // return Response.serverError().build();
-            r1 = r2 = "<span class=\"bg-warning\">product ratings not available</span>";
+        String[] r = new String[5];
+        for (int i = 0; i < 5; i++) {
+            r[i] = "";
         }
-      }
-      String replyBody = String.format(review_resp,review[0],reviewer[0],r1,review[1],reviewer[1],r2);
-      return Response.ok().type(MediaType.TEXT_HTML_TYPE).entity(replyBody).build();
+        Integer[] reviewID = new Integer[5];
+        String[] review = new String[5];
+        String[] reviewer = new String[5];
+        int numberOfReviews = 0;
+
+        try {
+            Class.forName("com.mysql.jdbc.Driver").newInstance();
+            String URL = "jdbc:mysql://" + dbHost + ":" + dbPort + "/bookinfo_db" ;
+            Connection con = DriverManager.getConnection(URL, dbUser, dbPassword);
+
+            Statement st = con.createStatement();
+            String sql = ("SELECT * FROM reviews;");
+            ResultSet rs = st.executeQuery(sql);
+
+            int count = 0;
+            while (rs.next()) {
+               reviewID[count] = rs.getInt("ReviewID");
+               review[count] = rs.getString("Review");
+               reviewer[count] = rs.getString("Reviewer");
+               System.out.println(reviewID[count] + " " + review[count] + " " + reviewer[count]);
+               numberOfReviews = count;
+               count++;
+               if (count==5) {
+                 break;
+               }
+            }
+
+            con.close();
+        }
+        catch (Exception ex) {
+      	  ex.printStackTrace();
+        }
+
+
+        if(ratings_enabled){
+          JsonObject ratings = getRatings(user, xreq, xtraceid, xspanid, xparentspanid, xsampled, xflags, xotspan);
+
+          if(ratings!=null){
+            if(ratings.containsKey("Reviewer1")){
+              r[0] = ratings.getString("Reviewer1");
+            }
+            if(ratings.containsKey("Reviewer2")){
+              r[1] = ratings.getString("Reviewer2");
+            }
+            if(ratings.containsKey("Reviewer3")){
+              r[2] = ratings.getString("Reviewer3");
+            }
+            if(ratings.containsKey("Reviewer4")){
+              r[3] = ratings.getString("Reviewer4");
+            }
+            if(ratings.containsKey("Reviewer5")){
+              r[4] = ratings.getString("Reviewer5");
+            }
+          }else{
+              // return Response.serverError().build();
+              for (int i = 0; i < 5; i++) {
+                  r[i] = "<span class=\"bg-warning\">product ratings not available</span>";
+              }
+          }
+        }
+
+        String reviews = "";
+        for (int i = 0; i < numberOfReviews+1; i++) {
+            reviews += String.format(review_template, review[i],reviewer[i], r[i]);
+        }
+        System.out.println(reviews);
+        if (reviewer[0] == null) {
+        	  return Response.ok().type(MediaType.TEXT_HTML_TYPE).entity("<h3>Be the first one to review this book!</h3>").build();
+        }
+        else {
+        	  return Response.ok().type(MediaType.TEXT_HTML_TYPE).entity(reviews).build();
+        }
     }
 
     private final static String index = ""+
@@ -224,7 +242,7 @@ public class LibertyRestEndpoint extends Application {
     @GET
     @Path("/")
     public String getDefault(){
-      return String.format(index,review_resp,ratings_enabled,star_color);
+      return String.format(index,review_template,ratings_enabled,star_color);
     }
 
 }
